@@ -1,4 +1,4 @@
-# Plant Leaf Segmentation MVP
+# Plant Leaf Segmentation and disease percentage classification MVP
 
 A small MVP for generating leaf-region pseudo-labels with **SAM 2.1** as teacher model and fine-tuning a **U-Net student model**. The student model is intended to provide a lighter-weight alternative for leaf segmentation at inference time.
 The teacher model generates annotations for a benchmark dataset PlantDoc and this weakly labeled annotation is used to fine-tune the much lighter weight U-Net Model.
