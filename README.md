@@ -19,19 +19,19 @@ The segmentation output can be used as the input to a separate **CIELAB-based ti
 
 Example leaf image used to illustrate the segmentation task.
 
-![Example input leaf](assets/beech_leaf_input.jpg)
+![Example input leaf](Beech_leaf.jpg)
 
 ### Teacher output — SAM 2.1 pseudo-label
 
 SAM 2.1 generates candidate masks. After filtering and combining selected proposals, the teacher produces a binary leaf-region pseudo-label. The example below shows the leaf region overlaid on the original image.
 
-![SAM 2.1 teacher annotation](assets/teacher_annotation_example.jpg)
+![SAM 2.1 teacher annotation](Teacher-Annotation-example.jpg)
 
 ### Student output — U-Net prediction
 
 The student predicts a per-pixel probability map. Applying a threshold (0.5 in this example) converts the probability map into a binary segmentation mask.
 
-![U-Net student prediction probability and thresholded mask](assets/student_prediction_example.png)
+![U-Net student prediction probability and thresholded mask](Student-prediction-example.png)
 
 These examples are qualitative illustrations. They do not constitute a quantitative comparison against manually annotated ground truth.
 
@@ -97,4 +97,4 @@ Run both notebooks in order in a fresh Colab runtime. Exact package versions and
 
 ## License and attribution
 
-Check the PlantDoc dataset license and the licenses/terms of the SAM 2 code, checkpoint, U-Net implementation and pretrained Carvana weights before redistributing data, weights or derived artifacts. Specify a separate license for this repository's code.
+MIT-License
