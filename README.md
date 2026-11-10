@@ -1,57 +1,100 @@
-# Plant Leaf Segmentation and disease percentage classification MVP
+# Plant Leaf Segmentation and Disease Percentage Classification MVP
 
-A small MVP for generating leaf-region pseudo-labels with **SAM 2.1** as teacher model and fine-tuning a **U-Net student model**. The student model is intended to provide a lighter-weight alternative for leaf segmentation at inference time.
-The teacher model generates annotations for a benchmark dataset PlantDoc and this weakly labeled annotation is used to fine-tune the much lighter weight U-Net Model.
+A small MVP that uses **SAM 2.1 as a teacher** to generate leaf-region pseudo-labels, then fine-tunes a **U-Net student** to provide a lighter-weight segmentation model for inference.
+
+The segmentation output can be used as the input to a separate **CIELAB-based tissue analysis** stage for estimating healthy, chlorotic and necrotic tissue percentages.
 
 ## Pipeline
 
-1. **Teacher annotation** — Notebook 1 downloads a subset of PlantDoc images and uses SAM 2.1 Automatic Mask Generation (AMG) to generate candidate masks.
-2. **Pseudo-mask filtering** — Candidates are filtered by area, predicted IoU and stability score, then combined into one binary leaf-region mask per image.
-3. **Student training** — Notebook 2 loads the image/mask pairs, resizes them to 256 × 256, and fine-tunes a one-channel U-Net using binary cross-entropy with logits.
-4. **Evaluation and inference** — The notebook reports test loss, Dice and IoU, visualizes predictions, and includes a CIELAB-based tissue classification example.
+1. **Input images** — A subset of PlantDoc images is used for the experiment.
+2. **Teacher annotation (SAM 2.1)** — Automatic Mask Generation (AMG) produces candidate masks.
+3. **Pseudo-mask filtering** — Candidates are filtered by area, predicted IoU and stability score. Selected masks are combined into one binary leaf-region mask per image.
+4. **Student training (U-Net)** — The image/mask pairs are used to fine-tune a one-channel U-Net with binary cross-entropy with logits.
+5. **Segmentation inference** — The trained student predicts a leaf-region probability map, which is thresholded to produce a binary mask.
+6. **Downstream tissue analysis** — The leaf mask can be combined with CIELAB colour rules to estimate healthy, chlorotic and necrotic tissue percentages.
+
+## Example outputs
+
+### Input image
+
+Example leaf image used to illustrate the segmentation task.
+
+![Example input leaf](assets/beech_leaf_input.jpg)
+
+### Teacher output — SAM 2.1 pseudo-label
+
+SAM 2.1 generates candidate masks. After filtering and combining selected proposals, the teacher produces a binary leaf-region pseudo-label. The example below shows the leaf region overlaid on the original image.
+
+![SAM 2.1 teacher annotation](assets/teacher_annotation_example.jpg)
+
+### Student output — U-Net prediction
+
+The student predicts a per-pixel probability map. Applying a threshold (0.5 in this example) converts the probability map into a binary segmentation mask.
+
+![U-Net student prediction probability and thresholded mask](assets/student_prediction_example.png)
+
+These examples are qualitative illustrations. They do not constitute a quantitative comparison against manually annotated ground truth.
 
 ## Notebooks
 
 | Notebook | Purpose |
 |---|---|
-| `SAM2_Hiera_Large_Teacher_Segmentation_Model.ipynb` | Download PlantDoc images, generate SAM 2.1 AMG pseudo-masks, review masks and save the annotation manifest. |
-| `UNet_Student_Train.ipynb` | Load pseudo-labelled data, fine-tune U-Net, evaluate segmentation and run inference. |
+| `SAM2_Hiera_Large_Teacher_Segmentation_Model.ipynb` | Download a PlantDoc subset, generate SAM 2.1 AMG proposals, filter and combine masks, and save the annotation manifest. |
+| `UNet_Student_Train.ipynb` | Load the generated image/mask pairs, fine-tune U-Net, evaluate segmentation and run inference. |
 
-Run Notebook 1 first. Notebook 2 expects the generated `images/`, `masks/` and `annotations/manifest.json` directories.
+Run the teacher notebook first. The student notebook expects the generated image, mask and annotation directories.
 
 ## Dataset
 
 The teacher notebook uses a subset of [PlantDoc](https://github.com/pratikkayal/PlantDoc-Dataset), an image dataset for plant disease recognition.
 
-The notebook samples up to 150 images (subject to availability and file-size filtering). These are **image-level disease-class images**, not manually annotated segmentation data. The generated masks are SAM-derived pseudo-labels and should be visually inspected before training.
+The notebook samples up to 150 images, subject to availability and file-size filtering. PlantDoc provides image-level disease labels, not pixel-level segmentation ground truth. The masks generated here are therefore **SAM-derived pseudo-labels** and should be visually inspected before student training.
 
 Dataset paper: Singh et al. (2020), *PlantDoc: A Dataset for Visual Plant Disease Detection*. https://doi.org/10.1145/3371158.3371196
 
 ## Runtime and dependencies
 
-Designed for Google Colab with a CUDA-enabled GPU. The teacher notebook records a Tesla T4 runtime. It installs SAM 2 from the official repository and downloads a SAM 2.1 checkpoint.
+Designed for Google Colab with a CUDA-enabled GPU.
 
-The student notebook uses PyTorch, NumPy, Pillow and Matplotlib. It also downloads a pretrained Carvana U-Net checkpoint and imports the U-Net implementation from `models.py`; ensure that this file is available in the runtime.
+- **Teacher:** SAM 2.1, PyTorch and the dependencies specified by the official [SAM 2 repository](https://github.com/facebookresearch/sam2).
+- **Student:** PyTorch, NumPy, Pillow and Matplotlib.
+- **Student model code:** `models.py`.
+- **Pretrained initialization:** the student notebook also uses a pretrained Carvana U-Net checkpoint; make the checkpoint accessible in the Colab runtime.
 
-Exact package versions and GPU availability can affect reproducibility. The notebooks should be run in order in a fresh Colab runtime.
+Run both notebooks in order in a fresh Colab runtime. Exact package versions and GPU availability can affect reproducibility.
 
 ## Important limitations
 
-- SAM masks are automatic pseudo-labels, not ground truth. AMG proposals can include partial leaves, overlapping regions or background.
-- The current filtering thresholds are heuristic and have not been validated as optimal.
-- The combined binary mask represents the leaf region; it does not separate individual leaves.
-- The dataset is small and sampled from PlantDoc. Results should be treated as an MVP demonstration, not a validated benchmark.
-- The CIELAB tissue classes use fixed colour thresholds and are a separate heuristic stage; they are not learned by the U-Net.
-- The current train/validation/test split is random at image level. It does not establish generalization to unseen plant species, acquisition conditions or datasets.
+- SAM masks are automatic pseudo-labels, not ground truth. AMG proposals may include partial leaves, overlapping regions or background.
+- The filtering thresholds are heuristic and have not been established as optimal.
+- The combined binary mask represents a leaf region; it does not distinguish individual leaves.
+- The dataset subset is small. Results should be treated as an MVP demonstration, not a validated benchmark.
+- The CIELAB tissue classes use fixed colour thresholds and are a separate heuristic stage; they are not learned by U-Net.
+- A random image-level train/validation/test split does not establish generalization to unseen plant species, acquisition conditions or datasets.
 
 ## Suggested execution
 
-1. Open Notebook 1 in Google Colab and select a GPU runtime.
-2. Run the cells to download images and generate masks.
-3. Inspect the mask-review visualizations and check the saved manifest.
-4. Open Notebook 2 and update `PROJECT_DIR` to the location of the generated data.
-5. Ensure `models.py` and the pretrained U-Net checkpoint are accessible, then train and evaluate.
+1. Open the teacher notebook in Google Colab and select a GPU runtime.
+2. Generate the SAM 2.1 pseudo-masks.
+3. Inspect the saved masks and annotation manifest.
+4. Open the student notebook and set `PROJECT_DIR` to the generated data location.
+5. Ensure `models.py` and the pretrained U-Net checkpoint are accessible.
+6. Train the student, inspect probability maps and thresholded masks, and review the evaluation metrics.
+
+## Repository files
+
+```text
+.
+├── SAM2_Hiera_Large_Teacher_Segmentation_Model.ipynb
+├── UNet_Student_Train.ipynb
+├── models.py
+├── README.md
+└── assets/
+    ├── beech_leaf_input.jpg
+    ├── teacher_annotation_example.jpg
+    └── student_prediction_example.png
+```
 
 ## License and attribution
 
-Check the PlantDoc dataset license and the licenses/terms of the SAM 2 code, checkpoint, U-Net implementation and pretrained Carvana weights before redistributing data, weights or derived artifacts. This repository's code license should be specified separately by its maintainers.
+Check the PlantDoc dataset license and the licenses/terms of the SAM 2 code, checkpoint, U-Net implementation and pretrained Carvana weights before redistributing data, weights or derived artifacts. Specify a separate license for this repository's code.
